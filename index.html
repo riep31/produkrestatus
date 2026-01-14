@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Produk Restatus</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #90caf9 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            font-weight: 600;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .controls {
+            padding: 25px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        input[type="date"] {
+            padding: 10px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #42a5f5;
+            box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.1);
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .btn-filter {
+            background: #42a5f5;
+            color: white;
+        }
+        
+        .btn-filter:hover {
+            background: #1e88e5;
+            box-shadow: 0 5px 15px rgba(66, 165, 245, 0.3);
+        }
+        
+        .btn-reset {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-reset:hover {
+            background: #5a6268;
+        }
+        
+        .btn-excel {
+            background: #28a745;
+            color: white;
+            margin-left: auto;
+        }
+        
+        .btn-excel:hover {
+            background: #218838;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        thead {
+            background: linear-gradient(135deg, #42a5f5 0%, #1e88e5 100%);
+            color: white;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        
+        th:nth-child(1), td:nth-child(1),
+        th:nth-child(10), td:nth-child(10) {
+            display: none;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        tbody tr {
+            transition: all 0.3s;
+        }
+        
+        tbody tr:nth-child(odd) {
+            background: #e3f2fd;
+        }
+        
+        tbody tr:nth-child(even) {
+            background: white;
+        }
+        
+        tbody tr:hover {
+            background: #bbdefb !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .pagination button {
+            padding: 8px 15px;
+            background: #42a5f5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: #1e88e5;
+        }
+        
+        .pagination button:disabled {
+            background: #ced4da;
+            cursor: not-allowed;
+        }
+        
+        .pagination button.active {
+            background: #1565c0;
+        }
+        
+        .page-info {
+            padding: 8px 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #1e88e5;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Laporan Produk Restatus</h1>
+           <h2>Dept. Warehouse Finisgoods Yogya</h2>
+        </header>
+        
+        <div class="controls">
+            <div class="filter-group">
+                <label for="startDate">Dari Tanggal:</label>
+                <input type="date" id="startDate">
+            </div>
+            
+            <div class="filter-group">
+                <label for="endDate">Sampai Tanggal:</label>
+                <input type="date" id="endDate">
+            </div>
+            
+            <button class="btn-filter" onclick="filterData()">🔍 Filter</button>
+            <button class="btn-reset" onclick="resetFilter()">🔄 Reset</button>
+            <button class="btn-excel" onclick="exportToExcel()">📥 Export Excel</button>
+        </div>
+        
+        <div class="table-container">
+            <div id="loadingMessage" class="loading">Memuat data...</div>
+            <table id="dataTable" style="display: none;">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+            <div id="noData" class="no-data" style="display: none;">Tidak ada data yang sesuai dengan filter.</div>
+        </div>
+        
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <script>
+        let allData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        const rowsPerPage = 10;
+        const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQmgH6FE2mw6xJgX62FEvX6Ebu37m16X8Fd7OnuFDucYvPbDl_0fLqzqXtMkhxSTOJX9iPN7d_EA3D9/pub?gid=1669429555&single=true&output=csv';
+
+        function loadData() {
+            Papa.parse(csvUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    allData = results.data;
+                    filteredData = allData;
+                    displayData();
+                    document.getElementById('loadingMessage').style.display = 'none';
+                    document.getElementById('dataTable').style.display = 'table';
+                },
+                error: function(error) {
+                    document.getElementById('loadingMessage').innerHTML = '❌ Gagal memuat data: ' + error.message;
+                }
+            });
+        }
+
+        function displayData() {
+            const table = document.getElementById('dataTable');
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+            const noDataDiv = document.getElementById('noData');
+            
+            if (filteredData.length === 0) {
+                table.style.display = 'none';
+                noDataDiv.style.display = 'block';
+                document.getElementById('pagination').innerHTML = '';
+                return;
+            }
+            
+            table.style.display = 'table';
+            noDataDiv.style.display = 'none';
+            
+            // Create table header
+            if (thead.children.length === 0 && filteredData.length > 0) {
+                const headerRow = document.createElement('tr');
+                Object.keys(filteredData[0]).forEach(key => {
+                    const th = document.createElement('th');
+                    th.textContent = key;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+            }
+            
+            // Calculate pagination
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const pageData = filteredData.slice(startIndex, endIndex);
+            
+            // Clear and populate table body
+            tbody.innerHTML = '';
+            pageData.forEach(row => {
+                const tr = document.createElement('tr');
+                Object.values(row).forEach(value => {
+                    const td = document.createElement('td');
+                    td.textContent = value;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            
+            displayPagination();
+        }
+
+        function displayPagination() {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+            
+            pagination.innerHTML = '';
+            
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '« Prev';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                currentPage--;
+                displayData();
+            };
+            pagination.appendChild(prevBtn);
+            
+            // Page info
+            const pageInfo = document.createElement('span');
+            pageInfo.className = 'page-info';
+            pageInfo.textContent = `Halaman ${currentPage} dari ${totalPages}`;
+            pagination.appendChild(pageInfo);
+            
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = 'Next »';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                currentPage++;
+                displayData();
+            };
+            pagination.appendChild(nextBtn);
+        }
+
+        function parseDDMMYYYY(dateString) {
+            // Parse tanggal format DD/MM/YYYY atau DD-MM-YYYY
+            if (!dateString) return null;
+            
+            // Support both / and - as separator
+            let parts = dateString.includes('/') ? dateString.split('/') : dateString.split('-');
+            if (parts.length !== 3) return null;
+            
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const year = parseInt(parts[2], 10);
+            
+            // Validate date components
+            if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+            
+            return new Date(year, month, day);
+        }
+
+        function filterData() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate && !endDate) {
+                alert('⚠️ Silakan pilih tanggal filter!');
+                return;
+            }
+            
+            filteredData = allData.filter(row => {
+                // Ambil kolom kedua (kolom B) yang berisi tanggal
+                const dateValue = Object.values(row)[1];
+                
+                if (!dateValue) return false;
+                
+                const rowDate = parseDDMMYYYY(dateValue);
+                if (!rowDate) return false;
+                
+                const start = startDate ? new Date(startDate) : new Date('1900-01-01');
+                const end = endDate ? new Date(endDate) : new Date('2100-12-31');
+                
+                // Set time to start of day for comparison
+                rowDate.setHours(0, 0, 0, 0);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(0, 0, 0, 0);
+                
+                return rowDate >= start && rowDate <= end;
+            });
+            
+            currentPage = 1;
+            displayData();
+        }
+
+        function resetFilter() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            filteredData = allData;
+            currentPage = 1;
+            displayData();
+        }
+
+        function exportToExcel() {
+            if (filteredData.length === 0) {
+                alert('⚠️ Tidak ada data untuk di-export!');
+                return;
+            }
+            
+            // Remove kolom A dan J dari data export
+            const dataToExport = filteredData.map(row => {
+                const newRow = {};
+                const keys = Object.keys(row);
+                keys.forEach((key, index) => {
+                    // Skip kolom 0 (A) dan kolom 9 (J)
+                    if (index !== 0 && index !== 9) {
+                        newRow[key] = row[key];
+                    }
+                });
+                return newRow;
+            });
+            
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Laporan");
+            
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            let filename = 'Laporan_Produk_Restatus';
+            
+            if (startDate || endDate) {
+                filename += `_${startDate || 'awal'}_to_${endDate || 'akhir'}`;
+            }
+            
+            XLSX.writeFile(wb, `${filename}.xlsx`);
+        }
+
+        // Load data on page load
+        loadData();
+    </script>
+</body>
+</html>
